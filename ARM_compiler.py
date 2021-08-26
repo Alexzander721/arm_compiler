@@ -207,6 +207,7 @@ class Compiler:
                     QgsProject.instance().removeMapLayer(layer)
                 else:
                     pass
+            self.dlg.close()
             self.message(catalog)
         else:
             error = QMessageBox()
@@ -288,7 +289,6 @@ class Compiler:
                 error_msg_2.exec_()
         elif self.dlg.tabWidget.currentIndex() == 1:
             self.split(CRS, crsname, catalog)
-            self.dlg.close()
         else:
             pass
 
@@ -305,26 +305,30 @@ class Compiler:
         self.dlg.comboBox2_i.clear()
         lst = []
         for layer in self.iface.mapCanvas().layers():
-            lst.append(layer.type())
-            if QgsMapLayerType.VectorLayer not in lst:
-                error = QMessageBox()
-                error.setWindowTitle("Ошибка!")
-                error.setText('Проект не содержит векторных слоёв!\n'
-                              "Добавьте слои в проект!")
-                error.exec_()
-            elif layer.type() == QgsMapLayerType.VectorLayer:
-                self.dlg.comboBox.addItems([layer.name()])
-                self.dlg.comboBox_i.addItems([layer.name()])
-                self.dlg.comboBox.setCurrentIndex(0)
-                self.dlg.comboBox.currentIndexChanged.connect(self.change_field)
-                self.change_field(0)
-                self.dlg.comboBox_i.setCurrentIndex(0)
-                self.dlg.comboBox_i.currentIndexChanged.connect(self.change_field_i)
-                self.change_field_i(0)
-                self.dlg.mQgsProjectionSelectionWidget.setCrs(QgsProject.instance().crs())
-                self.dlg.tabWidget.setCurrentIndex(0)
-                self.dlg.show()
+            if layer.type() == QgsMapLayerType.RasterLayer:
+                QgsProject.instance().removeMapLayer(layer)
+            else:
+                lst.append(layer.type())
+            if QgsMapLayerType.VectorLayer in lst:
+                if layer.type() == QgsMapLayerType.VectorLayer:
+                    self.dlg.comboBox.addItems([layer.name()])
+                    self.dlg.comboBox_i.addItems([layer.name()])
+                    self.dlg.comboBox.setCurrentIndex(0)
+                    self.dlg.comboBox.currentIndexChanged.connect(self.change_field)
+                    self.change_field(0)
+                    self.dlg.comboBox_i.setCurrentIndex(0)
+                    self.dlg.comboBox_i.currentIndexChanged.connect(self.change_field_i)
+                    self.change_field_i(0)
+                    self.dlg.mQgsProjectionSelectionWidget.setCrs(QgsProject.instance().crs())
+                    self.dlg.tabWidget.setCurrentIndex(0)
+                    self.dlg.show()
             else:
                 pass
+        if QgsMapLayerType.VectorLayer not in lst:
+            error = QMessageBox()
+            error.setWindowTitle("Ошибка!")
+            error.setText('Проект не содержит векторных слоёв!\n'
+                          "Добавьте слои в проект!")
+            error.exec_()
         self.dlg.OK.clicked.connect(self.apply)
         self.dlg.Cancel.clicked.connect(self.cancel)
