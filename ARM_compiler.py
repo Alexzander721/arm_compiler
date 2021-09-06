@@ -303,25 +303,25 @@ class Compiler:
         self.dlg.comboBox2.clear()
         self.dlg.comboBox_i.clear()
         self.dlg.comboBox2_i.clear()
+        self.dlg.OK.clicked.connect(self.apply)
+        self.dlg.Cancel.clicked.connect(self.cancel)
         lst = []
         for layer in self.iface.mapCanvas().layers():
+            if layer.type() == QgsMapLayerType.VectorLayer:
+                lst.append(layer.type())
+                self.dlg.comboBox.addItems([layer.name()])
+                self.dlg.comboBox_i.addItems([layer.name()])
+                self.dlg.comboBox.setCurrentIndex(0)
+                self.dlg.comboBox.currentIndexChanged.connect(self.change_field)
+                self.change_field(0)
+                self.dlg.comboBox_i.setCurrentIndex(0)
+                self.dlg.comboBox_i.currentIndexChanged.connect(self.change_field_i)
+                self.change_field_i(0)
+                self.dlg.mQgsProjectionSelectionWidget.setCrs(QgsProject.instance().crs())
+                self.dlg.tabWidget.setCurrentIndex(0)
+                self.dlg.show()
             if layer.type() == QgsMapLayerType.RasterLayer:
                 QgsProject.instance().removeMapLayer(layer)
-            else:
-                lst.append(layer.type())
-            if QgsMapLayerType.VectorLayer in lst:
-                if layer.type() == QgsMapLayerType.VectorLayer:
-                    self.dlg.comboBox.addItems([layer.name()])
-                    self.dlg.comboBox_i.addItems([layer.name()])
-                    self.dlg.comboBox.setCurrentIndex(0)
-                    self.dlg.comboBox.currentIndexChanged.connect(self.change_field)
-                    self.change_field(0)
-                    self.dlg.comboBox_i.setCurrentIndex(0)
-                    self.dlg.comboBox_i.currentIndexChanged.connect(self.change_field_i)
-                    self.change_field_i(0)
-                    self.dlg.mQgsProjectionSelectionWidget.setCrs(QgsProject.instance().crs())
-                    self.dlg.tabWidget.setCurrentIndex(0)
-                    self.dlg.show()
             else:
                 pass
         if QgsMapLayerType.VectorLayer not in lst:
@@ -330,5 +330,4 @@ class Compiler:
             error.setText('Проект не содержит векторных слоёв!\n'
                           "Добавьте слои в проект!")
             error.exec_()
-        self.dlg.OK.clicked.connect(self.apply)
-        self.dlg.Cancel.clicked.connect(self.cancel)
+            
