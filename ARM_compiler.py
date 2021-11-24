@@ -191,6 +191,7 @@ class Compiler:
             processing.run("qgis:splitvectorlayer",
                            {'INPUT': selectedLayer,
                             'FIELD': f'{selectedfield}',
+                            'FILE_TYPE': 0,
                             'OUTPUT': f'{catalog}'})
             for vl in list(set(lst)):
                 if vl in vlaue:
