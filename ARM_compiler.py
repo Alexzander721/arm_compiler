@@ -114,8 +114,7 @@ class Compiler:
         else:
             ciper = {'ГИДР': 52, 'РУЧЬИ': 54, 'РУЧЕЙ': 54, 'КАНАЛ': 54, 'ЖЕЛЕЗН': 55, 'ЖД': 55, 'АВТО': 57, 'ГРУНТ': 58,
                      'ЗИМНИК': 66, 'ТРОПА': 66, 'ТРОПЫ': 66, 'ЛЕСН': 66, 'ЛЕСОВ': 64, 'КАНАВ': 54, 'ЛЭП': 73,
-                     'ТЕЛЕФОН': 71,
-                     'ЛИНИЯ': 71, 'СВЯЗЬ': 71, 'СВЯЗИ': 71, 'ПРОЧИЕ': 59}
+                     'ТЕЛЕФОН': 71, 'ЛИНИЯ': 71, 'СВЯЗЬ': 71, 'СВЯЗИ': 71, 'ПРОЧИЕ': 59}
         if layer.type() == 0:
             if layer.wkbType() == 5:
                 layer.dataProvider().addAttributes([QgsField("LineID", QVariant.Int)])
@@ -206,8 +205,7 @@ class Compiler:
             selectedfield = self.dlg.comboBox2_i.currentText()
             findx = slayer.dataProvider().fieldNameIndex(f"{selectedfield}")
             lst = []
-            for feature in slayer.getFeatures():
-                lst.append(feature.attributes()[findx])
+            [lst.append(feature.attributes()[findx]) for feature in slayer.getFeatures()]
             processing.run("qgis:splitvectorlayer",
                            {'INPUT': slayer,
                             'FIELD': f'{selectedfield}',
@@ -262,7 +260,7 @@ class Compiler:
         slayer = self.dlg.comboBox.itemData(self.dlg.comboBox.currentIndex())
         slayername = slayer.name()
         catalog = self.dlg.lineEdit.text()
-        if catalog == '':
+        if not bool(catalog):
             error_msg = QMessageBox()
             error_msg.setWindowTitle("Ошибка!")
             error_msg.setText(
