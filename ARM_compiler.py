@@ -117,16 +117,14 @@ class Compiler:
                      'ТЕЛЕФОН': 71, 'ЛИНИЯ': 71, 'СВЯЗЬ': 71, 'СВЯЗИ': 71, 'ПРОЧИЕ': 59}
         if layer.type() == 0:
             if layer.wkbType() == 5:
-                layer.dataProvider().addAttributes([QgsField("LineID", QVariant.Int)])
-                layer.updateFields()
+                layer.dataProvider().addAttributes([QgsField("LineID", QVariant.Int)]), layer.updateFields()
             for i in ciper.keys():
                 if i in layer.name().upper():
                     ilist = [ciper[i]]
                     layer.startEditing()
                     for feature in layer.getFeatures():
-                        findx = layer.dataProvider().fieldNameIndex("LineID")
                         layer.dataProvider().changeAttributeValues(
-                            {feature.id(): {findx: int(ilist[0])}})
+                            {feature.id(): {layer.dataProvider().fieldNameIndex("LineID"): int(ilist[0])}})
                     layer.commitChanges()
 
     def saveSHP(self, catalog, CRS, crsname, layer):
@@ -301,7 +299,8 @@ class Compiler:
         self.dlg.comboBox.clear()
         self.dlg.comboBox_i.clear()
         for layer in self.instance.mapLayers().values():
-            if layer.type() == QgsMapLayer.VectorLayer:
+            if layer.type() == QgsMapLayer.VectorLayer and layer.wkbType() == 3 or \
+                    layer.type() == QgsMapLayer.VectorLayer and layer.wkbType() == 6:
                 self.dlg.comboBox.addItem(layer.name(), layer)
                 self.dlg.comboBox_i.addItem(layer.name(), layer)
 
@@ -351,3 +350,4 @@ class Compiler:
             error.setText('Проект не содержит векторных слоёв!\n'
                           "Добавьте слои в проект!")
             error.exec_()
+            
