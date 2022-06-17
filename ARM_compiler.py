@@ -115,40 +115,37 @@ class Compiler:
             ciper = {'ГИДР': 52, 'РУЧЬИ': 54, 'РУЧЕЙ': 54, 'КАНАЛ': 54, 'ЖЕЛЕЗН': 55, 'ЖД': 55, 'АВТО': 57, 'ГРУНТ': 58,
                      'ЗИМНИК': 66, 'ТРОПА': 66, 'ТРОПЫ': 66, 'ЛЕСН': 66, 'ЛЕСОВ': 64, 'КАНАВ': 54, 'ЛЭП': 73,
                      'ТЕЛЕФОН': 71, 'ЛИНИЯ': 71, 'СВЯЗЬ': 71, 'СВЯЗИ': 71, 'ПРОЧИЕ': 59}
-        if layer.type() == 0:
-            if layer.wkbType() == 5:
-                layer.dataProvider().addAttributes([QgsField("LineID", QVariant.Int)]), layer.updateFields()
-            for i in ciper.keys():
-                if i in layer.name().upper():
-                    ilist = [ciper[i]]
-                    layer.startEditing()
-                    for feature in layer.getFeatures():
-                        layer.dataProvider().changeAttributeValues(
-                            {feature.id(): {layer.dataProvider().fieldNameIndex("LineID"): int(ilist[0])}})
-                    layer.commitChanges()
+        if layer.type() == 0 and layer.wkbType() == 5:
+            layer.dataProvider().addAttributes([QgsField("LineID", QVariant.Int)]), layer.updateFields()
+            ilist = [ciper[i] for i in ciper.keys() if i in layer.name().upper()]
+            layer.startEditing()
+            [layer.dataProvider().changeAttributeValues(
+                {feature.id(): {layer.dataProvider().fieldNameIndex("LineID"): int(ilist[0])}}) for feature in
+                layer.getFeatures()]
+            layer.commitChanges()
 
-    def saveSHP(self, catalog, CRS, crsname, layer):
+    def saveSHP(self, crsname, layer):
         """
         Сохранение слоёв в ESRI Shapefile с СК
         """
-        cs = QgsCoordinateTransform(layer.crs(),
-                                    CRS, self.instance)
         if layer.type() == 0:
             error = QgsVectorFileWriter.writeAsVectorFormat(layer,
-                                                            catalog + f"/{crsname}_" + layer.name(),
+                                                            f"{self.dlg.lineEdit.text()}/{crsname}_" + layer.name(),
                                                             'utf-8',
-                                                            cs,
+                                                            QgsCoordinateTransform(layer.crs(),
+                                                                                   self.dlg.mQgsProjectionSelectionWidget.crs(),
+                                                                                   self.instance),
                                                             "ESRI Shapefile")
             if error[0] == QgsVectorFileWriter.NoError:
                 pass
 
-    def remove(self, catalog, crsname, layer):
+    def remove(self, crsname, layer):
         """
         Удаление слоёв MIF открытие сохранёных SHP файлов
         """
         if layer.type() == 0:
             self.instance.addMapLayer(
-                QgsVectorLayer(f"{catalog}/{crsname}_{layer.name()}.shp", f"{crsname}_{layer.name()}",
+                QgsVectorLayer(f"{self.dlg.lineEdit.text()}/{crsname}_{layer.name()}.shp", f"{crsname}_{layer.name()}",
                                "ogr"))
             self.instance.removeMapLayer(layer)
 
@@ -158,7 +155,7 @@ class Compiler:
         """
         self.dlg.lineEdit.setText(QFileDialog.getExistingDirectory())
 
-    def polkw(self, catalog, slayername, crsname, layer):
+    def polkw(self, slayername, crsname, layer):
         """
         Создание полигонов кварталов в СК
         """
@@ -167,24 +164,23 @@ class Compiler:
                 "native:dissolve",
                 {'INPUT': layer,
                  'FIELD': self.dlg.comboBox2.currentText(),
-                 'OUTPUT': f"{catalog}/{crsname}_полигоны-квартала.shp"})
+                 'OUTPUT': f"{self.dlg.lineEdit.text()}/{crsname}_полигоны-квартала.shp"})
             self.instance.addMapLayer(
-                QgsVectorLayer(f"{catalog}/{crsname}_полигоны-квартала.shp", f"{crsname}_полигоны-квартала",
+                QgsVectorLayer(f"{self.dlg.lineEdit.text()}/{crsname}_полигоны-квартала.shp",
+                               f"{crsname}_полигоны-квартала",
                                "ogr"))
 
-    def uline(self, catalog, crsname):
+    def uline(self, crsname):
         """
         Объединение линейных слоёв в один
         """
-        inputlayer = []
-        for layer in self.instance.layerTreeRoot().children():
-            if layer.layer().type() == 0:
-                if layer.layer().wkbType() == 5:
-                    inputlayer.append(layer.layer())
+        inputted = [layer.layer() for layer in self.instance.layerTreeRoot().children() if
+                    layer.layer().type() == 0 and layer.layer().wkbType() == 5]
         processing.runAndLoadResults("qgis:mergevectorlayers",
-                                     {'LAYERS': inputlayer, 'OUTPUT': f'{catalog}/{crsname}_LINES.shp'})
+                                     {'LAYERS': inputted,
+                                      'OUTPUT': f'{self.dlg.lineEdit.text()}/{crsname}_LINES.shp'})
 
-    def split(self, CRS, crsname, catalog):
+    def split(self, crsname):
         """
         Разбитие линейного слоя по атрибуту
         """
@@ -202,28 +198,28 @@ class Compiler:
         if slayer.wkbType() == 5:
             selectedfield = self.dlg.comboBox2_i.currentText()
             findx = slayer.dataProvider().fieldNameIndex(f"{selectedfield}")
-            lst = []
-            [lst.append(feature.attributes()[findx]) for feature in slayer.getFeatures()]
             processing.run("qgis:splitvectorlayer",
                            {'INPUT': slayer,
                             'FIELD': f'{selectedfield}',
                             'FILE_TYPE': 0,
-                            'OUTPUT': f'{catalog}'})
-            for vl in list(set(lst)):
+                            'OUTPUT': f'{self.dlg.lineEdit.text()}'})
+            for vl in list(set([feature.attributes()[findx] for feature in slayer.getFeatures()])):
                 if vl in vlaue:
-                    gpkglayer = QgsVectorLayer(f"{catalog}/{selectedfield}_{vl}.gpkg", f"{key[vlaue.index(vl)]}",
+                    gpkglayer = QgsVectorLayer(f"{self.dlg.lineEdit.text()}/{selectedfield}_{vl}.gpkg",
+                                               f"{key[vlaue.index(vl)]}",
                                                "ogr")
                     self.instance.addMapLayer(gpkglayer)
                     layers.append(gpkglayer)
             for layer in layers:
                 if layer.type() == 0:
-                    self.saveSHP(catalog, CRS, crsname, layer)
-                    vlayer = QgsVectorLayer(f"{catalog}/{crsname}_{layer.name()}.shp", f"{crsname}_{layer.name()}",
+                    self.saveSHP(crsname, layer)
+                    vlayer = QgsVectorLayer(f"{self.dlg.lineEdit.text()}/{crsname}_{layer.name()}.shp",
+                                            f"{crsname}_{layer.name()}",
                                             "ogr")
                     self.instance.addMapLayer(vlayer)
                     self.instance.removeMapLayer(layer)
             self.dlg.close()
-            self.message(catalog)
+            self.message()
         else:
             error = QMessageBox()
             error.setWindowTitle("Ошибка!")
@@ -237,13 +233,13 @@ class Compiler:
         """
         layer.setCrs(self.instance.crs())
 
-    def message(self, catalog):
+    def message(self):
         """
         Сообщение по завершении
         """
         msbox = QMessageBox()
         msbox.setIcon(QMessageBox.Information)
-        msbox.setText(f"Результирующие слои сохранены: {catalog}")
+        msbox.setText(f"Результирующие слои сохранены: {self.dlg.lineEdit.text()}")
         msbox.setWindowTitle("Готово!")
         msbox.exec()
 
@@ -251,31 +247,29 @@ class Compiler:
         """
         Запуск алгоритмов обработки, проверка на ошибки
         """
-        CRS = self.dlg.mQgsProjectionSelectionWidget.crs()
-        cname = format(CRS.description())
-        cname = cname.replace(" ", "")
-        cname = cname.replace("/", "-")
-        slayer = self.dlg.comboBox.itemData(self.dlg.comboBox.currentIndex())
-        slayername = slayer.name()
-        catalog = self.dlg.lineEdit.text()
-        if not bool(catalog):
+        cname = format(self.dlg.mQgsProjectionSelectionWidget.crs().description())
+        cname = cname.replace(" ", "").replace("/", "-")
+        slayername = self.dlg.comboBox.itemData(self.dlg.comboBox.currentIndex()).name()
+        if not bool(self.dlg.lineEdit.text()):
             error_msg = QMessageBox()
             error_msg.setWindowTitle("Ошибка!")
             error_msg.setText(
                 "Папка назначения не задана!")
             error_msg.exec_()
         elif self.dlg.tabWidget.currentIndex() == 0:
-            if slayer.wkbType() == 3 or slayer.wkbType() == 6:
+            if self.dlg.comboBox.itemData(
+                    self.dlg.comboBox.currentIndex()).wkbType() == 3 or \
+                    self.dlg.comboBox.itemData(self.dlg.comboBox.currentIndex()).wkbType() == 6:
                 for layer in self.iface.mapCanvas().layers():
                     if layer.type() == QgsMapLayer.VectorLayer:
                         self.set_crs(layer)
-                        self.saveSHP(catalog, CRS, cname, layer)
-                        self.remove(catalog, cname, layer)
+                        self.saveSHP(cname, layer)
+                        self.remove(cname, layer)
                 for layer in self.instance.mapLayers().values():
-                    self.polkw(catalog, slayername, cname, layer)
+                    self.polkw(slayername, cname, layer)
                     self.cipher(layer)
-                self.uline(catalog, cname)
-                self.message(catalog)
+                self.uline(cname)
+                self.message()
                 self.dlg.close()
             else:
                 error_msg_2 = QMessageBox()
@@ -284,7 +278,7 @@ class Compiler:
                     "Выбранный слой не полигональный!")
                 error_msg_2.exec_()
         elif self.dlg.tabWidget.currentIndex() == 1:
-            self.split(CRS, cname, catalog)
+            self.split(cname)
 
     def cancel(self):
         """
@@ -299,8 +293,7 @@ class Compiler:
         self.dlg.comboBox.clear()
         self.dlg.comboBox_i.clear()
         for layer in self.instance.mapLayers().values():
-            if layer.type() == QgsMapLayer.VectorLayer and layer.wkbType() == 3 or \
-                    layer.type() == QgsMapLayer.VectorLayer and layer.wkbType() == 6:
+            if layer.type() == QgsMapLayer.VectorLayer:
                 self.dlg.comboBox.addItem(layer.name(), layer)
                 self.dlg.comboBox_i.addItem(layer.name(), layer)
 
@@ -309,18 +302,18 @@ class Compiler:
         Выбор поля "Квартальности" пользователем
         """
         self.dlg.comboBox2.clear()
-        slayer = self.dlg.comboBox.itemData(self.dlg.comboBox.currentIndex())
-        if slayer is not None:
-            [self.dlg.comboBox2.addItem(field.name()) for field in slayer.fields()]
+        if self.dlg.comboBox.itemData(self.dlg.comboBox.currentIndex()) is not None:
+            [self.dlg.comboBox2.addItem(field.name()) for field in
+             self.dlg.comboBox.itemData(self.dlg.comboBox.currentIndex()).fields()]
 
     def choice_field_i(self):
         """
         Выбор поля ID линейных пользователем
         """
         self.dlg.comboBox2_i.clear()
-        slayer = self.dlg.comboBox_i.itemData(self.dlg.comboBox_i.currentIndex())
-        if slayer is not None:
-            [self.dlg.comboBox2_i.addItem(field.name()) for field in slayer.fields()]
+        if self.dlg.comboBox_i.itemData(self.dlg.comboBox_i.currentIndex()) is not None:
+            [self.dlg.comboBox2_i.addItem(field.name()) for field in
+             self.dlg.comboBox_i.itemData(self.dlg.comboBox_i.currentIndex()).fields()]
 
     def run(self):
         """
@@ -340,14 +333,10 @@ class Compiler:
         self.dlg.mQgsProjectionSelectionWidget.setCrs(self.instance.crs())
         self.dlg.tabWidget.setCurrentIndex(0)
         self.dlg.show()
-        lst = []
-        for layer in self.instance.mapLayers().values():
-            if layer.type() == QgsMapLayer.VectorLayer:
-                lst.append(layer.type())
+        lst = [layer.type() for layer in self.instance.mapLayers().values() if layer.type() == QgsMapLayer.VectorLayer]
         if QgsMapLayerType.VectorLayer not in lst:
             error = QMessageBox()
             error.setWindowTitle("Ошибка!")
             error.setText('Проект не содержит векторных слоёв!\n'
                           "Добавьте слои в проект!")
             error.exec_()
-            
