@@ -108,20 +108,23 @@ class Compiler:
         """
         if self.dlg.checkBox.isChecked():
             ciper = {'ГИДР': 27, 'РУЧЬИ': 28, 'РУЧЕЙ': 28, 'КАНАЛ': 29, 'ЖЕЛЕЗН': 30, 'ЖД': 30, 'АВТО': 31, 'ГРУНТ': 31,
-                     'ЗИМНИК': 32, 'ТРОПА': 33, 'ТРОПЫ': 33, 'ЛЕСН': 33, 'ЛЕСОВ': 33, 'КАНАВ': 34, 'ГРАНИЦ': 35,
+                     'ЗИМНИК': 32, 'ТРОПА': 33, 'ТРОПЫ': 33, 'ЛЕСН': 33, 'ЛЕСО': 33, 'КАНАВ': 34, 'ГРАНИЦ': 35,
                      'ПРОСЕК': 36, 'ЛЭП': 45, 'ГАЗ': 46, 'ТЕЛЕФОН': 47, 'ЛИНИЯ': 47, 'СВЯЗЬ': 47, 'СВЯЗИ': 47,
                      'МЕЛИОРАЦ': 48, 'ПОЖАР': 49, 'ПРОЧИЕ': 50, 'ВОДОПРОВОД': 56, 'НЕФТ': 82}
         else:
             ciper = {'ГИДР': 52, 'РУЧЬИ': 54, 'РУЧЕЙ': 54, 'КАНАЛ': 54, 'ЖЕЛЕЗН': 55, 'ЖД': 55, 'АВТО': 57, 'ГРУНТ': 58,
-                     'ЗИМНИК': 66, 'ТРОПА': 66, 'ТРОПЫ': 66, 'ЛЕСН': 66, 'ЛЕСОВ': 64, 'КАНАВ': 54, 'ЛЭП': 73,
+                     'ЗИМНИК': 66, 'ТРОПА': 66, 'ТРОПЫ': 66, 'ЛЕСН': 66, 'ЛЕСО': 64, 'КАНАВ': 54, 'ЛЭП': 73,
                      'ТЕЛЕФОН': 71, 'ЛИНИЯ': 71, 'СВЯЗЬ': 71, 'СВЯЗИ': 71, 'ПРОЧИЕ': 59}
         if layer.type() == 0 and layer.wkbType() == 5:
             layer.dataProvider().addAttributes([QgsField("LineID", QVariant.Int)]), layer.updateFields()
             ilist = [ciper[i] for i in ciper.keys() if i in layer.name().upper()]
             layer.startEditing()
-            [layer.dataProvider().changeAttributeValues(
-                {feature.id(): {layer.dataProvider().fieldNameIndex("LineID"): int(ilist[0])}}) for feature in
-                layer.getFeatures()]
+            try:
+                [layer.dataProvider().changeAttributeValues(
+                    {feature.id(): {layer.dataProvider().fieldNameIndex("LineID"): int(ilist[0])}}) for feature in
+                    layer.getFeatures()]
+            except IndexError:
+                pass
             layer.commitChanges()
 
     def saveSHP(self, crsname, layer):
